@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { FaShieldAlt, FaLock, FaBug, FaNetworkWired, FaCertificate, FaLaptopCode, FaBars, FaTimes, FaMoon, FaSun, FaStar, FaRobot, FaCloudSun } from 'react-icons/fa';
-import { db } from '../firebase'; // Pastikan path ini benar
+import { db } from '../firebase';
 import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
-import axios from 'axios';
 
 // Data Portfolio
 const portfolioItems = [
@@ -83,23 +82,17 @@ export default function Home() {
       return;
     }
 
-    // Real-time listener untuk Comments
     const commentsQuery = query(collection(db, 'comments'), orderBy('date', 'desc'));
     const unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
       const commentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setComments(commentsData);
-    }, (error) => {
-      console.error('Error fetching comments:', error);
-    });
+    }, (error) => console.error('Error fetching comments:', error));
 
-    // Real-time listener untuk Ratings
     const ratingsQuery = query(collection(db, 'ratings'), orderBy('date', 'desc'));
     const unsubscribeRatings = onSnapshot(ratingsQuery, (snapshot) => {
       const ratingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setRatings(ratingsData);
-    }, (error) => {
-      console.error('Error fetching ratings:', error);
-    });
+    }, (error) => console.error('Error fetching ratings:', error));
 
     return () => {
       unsubscribeComments();
@@ -139,65 +132,57 @@ export default function Home() {
     }
   };
 
-  // Chatbot Handler
   const handleChatSubmit = async (e) => {
-  e.preventDefault();
-  if (!chatInput) return;
+    e.preventDefault();
+    if (!chatInput) return;
 
-  try {
-    // Cek apakah user meminta ganti tema
-    if (chatInput.toLowerCase().includes('change theme to dark')) {
-      setTheme('dark');
-      setChatResponse('Theme changed to dark!');
-    } else if (chatInput.toLowerCase().includes('change theme to light')) {
-      setTheme('light');
-      setChatResponse('Theme changed to light!');
-    }
-    // Cek apakah user meminta cuaca
-    else if (chatInput.toLowerCase().includes('weather in')) {
-      const city = chatInput.split('weather in')[1]?.trim();
-      if (city) {
-        const response = await fetch(`/api/weather?city=${city}`);
-        const data = await response.json();
-        if (data.error) {
-          setChatResponse(data.error);
+    try {
+      if (chatInput.toLowerCase().includes('change theme to dark')) {
+        setTheme('dark');
+        setChatResponse('Theme changed to dark!');
+      } else if (chatInput.toLowerCase().includes('change theme to light')) {
+        setTheme('light');
+        setChatResponse('Theme changed to light!');
+      } else if (chatInput.toLowerCase().includes('weather in')) {
+        const city = chatInput.split('weather in')[1]?.trim();
+        if (city) {
+          const response = await fetch(`/api/weather?city=${city}`);
+          const data = await response.json();
+          if (data.error) {
+            setChatResponse(data.error);
+          } else {
+            setWeather({
+              city: data.city,
+              temp: data.temp,
+              desc: data.desc,
+            });
+            setChatResponse(`Weather in ${data.city}: ${data.temp}°C, ${data.desc}`);
+          }
         } else {
-          setWeather({
-            city: data.city,
-            temp: data.temp,
-            desc: data.desc,
-          });
-          setChatResponse(`Weather in ${data.city}: ${data.temp}°C, ${data.desc}`);
+          setChatResponse('Please specify a city, e.g., "weather in Jakarta"');
         }
       } else {
-        setChatResponse('Please specify a city, e.g., "weather in Jakarta"');
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: chatInput }),
+        });
+        const data = await response.json();
+        setChatResponse(data.response);
       }
+    } catch (error) {
+      console.error('Error with chatbot:', error);
+      setChatResponse('Sorry, something went wrong. Try again!');
     }
-    // Respon umum dari OpenAI
-    else {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: chatInput }),
-      });
-      const data = await response.json();
-      setChatResponse(data.response);
-    }
-  } catch (error) {
-    console.error('Error with chatbot:', error);
-    setChatResponse('Sorry, something went wrong. Try again!');
-  }
-  setChatInput('');
-};
+    setChatInput('');
+  };
 
   const averageRating = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1) : 'N/A';
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} relative`}>
-      {/* Navbar */}
       <Navbar theme={theme} toggleTheme={toggleTheme} />
 
-      {/* Home Section */}
       <section id="home" className="pt-20 container mx-auto text-center py-10 px-4">
         <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
           <Image src="/profile.jpg" alt="Muhammad Iqbal" width={150} height={150} className={`rounded-full mx-auto mb-4 border-4 ${theme === 'dark' ? 'border-cyan-400' : 'border-cyan-600'}`} />
@@ -208,7 +193,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* About Section */}
       <section id="about" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-cyan-400 mb-6 text-center flex justify-center items-center">
           <FaShieldAlt className="mr-2" /> About Me
@@ -216,7 +200,6 @@ export default function Home() {
         <p className={`text-center max-w-2xl mx-auto text-sm md:text-base ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Saya Muhammad Iqbal, seorang profesional di bidang cybersecurity dengan pengalaman dalam penetration testing, konfigurasi firewall, dan analisis malware. Saya bersemangat untuk melindungi sistem dari ancaman siber dan terus belajar tentang teknologi keamanan terbaru.</p>
       </section>
 
-      {/* Skills Section */}
       <section id="skills" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-cyan-400 mb-6 text-center flex justify-center items-center">
           <FaLaptopCode className="mr-2" /> Skills
@@ -231,7 +214,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Portfolio Section */}
       <section id="portfolio" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 text-cyan-400 flex justify-center items-center">
           <FaNetworkWired className="mr-2" /> Portfolio Timeline
@@ -253,7 +235,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Certifications Section */}
       <section id="certifications" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-cyan-400 mb-6 text-center flex justify-center items-center">
           <FaCertificate className="mr-2" /> Certifications
@@ -271,7 +252,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Comments Section */}
       <section id="comments" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-cyan-400 mb-6 text-center flex justify-center items-center">
           <FaShieldAlt className="mr-2" /> Leave a Comment
@@ -298,7 +278,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Ratings Section */}
       <section id="ratings" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-cyan-400 mb-6 text-center flex justify-center items-center">
           <FaStar className="mr-2" /> Rate This Website
@@ -316,17 +295,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Chatbot Section */}
       <section id="chatbot" className="container mx-auto py-10 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-cyan-400 mb-6 text-center flex justify-center items-center">
-          <FaRobot className="mr-2" /> Chat with AI
+          <FaRobot className="mr-2" /> Chat with Hugging Face AI
         </h2>
         <form onSubmit={handleChatSubmit} className="max-w-2xl mx-auto mb-8">
           <div className="mb-4">
             <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask me! huruf harus kecil semua (e.g., 'change theme to light', 'weather in jakarta',)"
+              placeholder="Ask me anything! (e.g., 'Change theme to light', 'Weather in Jakarta', 'Tell me about cybersecurity')"
               className={`w-full p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-900'} border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} focus:outline-none focus:border-cyan-400`}
               rows="4"
             />
@@ -347,12 +325,10 @@ export default function Home() {
         )}
       </section>
 
-      {/* Theme Toggle Button */}
       <button onClick={toggleTheme} className="fixed bottom-6 left-6 p-3 rounded-full bg-cyan-400 text-gray-900 hover:bg-cyan-500 transition shadow-lg z-50" aria-label="Toggle Theme">
         {theme === 'dark' ? <FaSun size={20} /> : <FaMoon size={20} />}
       </button>
 
-      {/* Portfolio Detail Modal */}
       {selectedPortfolio && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 px-4">
           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className={`p-6 rounded-lg max-w-lg w-full shadow-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
