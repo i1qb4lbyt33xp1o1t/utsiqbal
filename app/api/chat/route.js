@@ -4,67 +4,48 @@ import axios from 'axios';
 export async function POST(req) {
   try {
     const { message } = await req.json();
-
     if (!message) {
       throw new Error('No message provided in request');
     }
 
     const response = await axios.post(
-      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1', // Switched to Mistral-7B-Instruct
+      'https://openrouter.ai/api/v1/chat/completions',
       {
-        inputs: `<s>[INST] ${message} [/INST]`,
-        parameters: {
-          max_new_tokens: 150,
-          return_full_text: false,
-        },
+        model: 'openchat/openchat-7b', // You can change this to another free model if desired
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant.' },
+          { role: 'user', content: message }
+        ],
+        max_tokens: 150
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.HF_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
 
-    const reply = response.data[0]?.generated_text?.trim() || 'No response generated';
+    const reply = response.data.choices?.[0]?.message?.content?.trim() || 'No response generated';
 
-    return new Response(JSON.stringify({
-      response: reply,
-    }), {
+    return new Response(JSON.stringify({ response: reply }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' }
     });
+
   } catch (error) {
-    console.error('Error with Hugging Face API:', {
+    console.error('Error with OpenRouter API:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
     });
 
-    if (error.response && error.response.status === 429) {
-      return new Response(JSON.stringify({
-        response: 'API limit reached. Please try again later.',
-      }), {
-        status: 429,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (error.response && error.response.status === 404) {
-      return new Response(JSON.stringify({
-        response: 'Model not found on Hugging Face. Please try again later or contact support.',
-      }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     return new Response(JSON.stringify({
-      response: 'Sorry, something went wrong with the AI. Try again!',
-      error: error.message,
+      response: 'AI error occurred. Please try again later.',
+      error: error.message
     }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      status: error.response?.status || 500,
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 }
