@@ -1,4 +1,6 @@
 // app/api/chat/route.js
+export const runtime = 'nodejs'; // Needed for process.env to work
+
 import axios from 'axios';
 
 export async function POST(req) {
@@ -11,7 +13,7 @@ export async function POST(req) {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'openchat/openchat-7b', // You can change this to another free model if desired
+        model: 'openchat/openchat-7b', // Or another model of your choice
         messages: [
           { role: 'system', content: 'You are a helpful assistant.' },
           { role: 'user', content: message }
